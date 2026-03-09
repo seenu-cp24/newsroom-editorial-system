@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<title>Editor Dashboard</title>
+</head>
+
+<body>
+
+<h1>Editor Dashboard</h1>
+
+<a href="/logout/">Logout</a>
+
+<br><br>
+
+<h2>Articles Ready for Approval</h2>
+
+<table border="1">
+
+<tr>
+<th>Title</th>
+<th>Reporter</th>
+<th>Action</th>
+</tr>
+
+{% for article in articles %}
+
+<tr>
+<td>{{ article.title }}</td>
+<td>{{ article.reporter.username }}</td>
+<td>
+<a href="/approve-article/{{ article.id }}/">Approve</a>
+</td>
+</tr>
+
+{% endfor %}
+
+</table>
+
+</body>
+
+</html>

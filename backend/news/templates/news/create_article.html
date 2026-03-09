@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<title>Create Article</title>
+</head>
+
+<body>
+
+<h1>Create News Article</h1>
+
+<form method="POST">
+
+{% csrf_token %}
+
+{{ form.as_p }}
+
+<button type="submit">Submit Article</button>
+
+</form>
+
+<br>
+
+<a href="/reporter-dashboard/">Back to Dashboard</a>
+
+</body>
+
+</html>

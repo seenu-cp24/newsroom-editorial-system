@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Reporter Dashboard</title>
+</head>
+
+<body>
+<a href="/logout/">Logout</a>
+<br><br>
+<h1>Reporter Dashboard</h1>
+
+<h2>My Articles</h2>
+
+<a href="/create-article/">Create New Article</a>
+<br><br>
+
+<table border="1">
+
+<tr>
+<th>Title</th>
+<th>Status</th>
+<th>Created</th>
+</tr>
+
+{% for article in articles %}
+
+<tr>
+<td>{{ article.title }}</td>
+<td>{{ article.status }}</td>
+<td>{{ article.created_at }}</td>
+</tr>
+
+{% endfor %}
+
+</table>
+
+</body>
+</html>

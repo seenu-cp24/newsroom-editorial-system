@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<title>SubEditor Dashboard</title>
+</head>
+
+<body>
+<a href="/logout/">Logout</a>
+<br><br>
+
+<h1>SubEditor Dashboard</h1>
+
+<h2>Articles Waiting for Review</h2>
+
+<table border="1">
+
+<tr>
+<th>Title</th>
+<th>Reporter</th>
+<th>Action</th>
+</tr>
+
+{% for article in articles %}
+
+<tr>
+<td>{{ article.title }}</td>
+<td>{{ article.reporter.username }}</td>
+<td>
+<a href="/edit-article/{{ article.id }}/">Edit</a>
+</td>
+</tr>
+
+{% endfor %}
+
+</table>
+
+</body>
+
+</html>

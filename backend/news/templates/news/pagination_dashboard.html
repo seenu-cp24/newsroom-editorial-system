@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<title>Pagination Dashboard</title>
+</head>
+
+<body>
+
+<h1>Paginator Dashboard</h1>
+
+<a href="/logout/">Logout</a>
+
+<br><br>
+
+<h2>Articles Ready for Layout</h2>
+
+<table border="1">
+
+<tr>
+<th>Title</th>
+<th>Reporter</th>
+<th>Page Number</th>
+<th>Action</th>
+</tr>
+
+{% for article in articles %}
+
+<tr>
+<td>{{ article.title }}</td>
+<td>{{ article.reporter.username }}</td>
+<td>{{ article.page_number }}</td>
+<td>
+<a href="/publish-article/{{ article.id }}/">Publish</a>
+</td>
+</tr>
+
+{% endfor %}
+
+</table>
+
+</body>
+
+</html>
