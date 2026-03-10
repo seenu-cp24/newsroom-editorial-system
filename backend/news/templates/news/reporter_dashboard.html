@@ -1,20 +1,12 @@
-<!DOCTYPE html>
-<html>
-<head>
-<title>Reporter Dashboard</title>
-</head>
+{% extends "base.html" %}
 
-<body>
-<a href="/logout/">Logout</a>
-<br><br>
-<h1>Reporter Dashboard</h1>
+{% block content %}
 
-<h2>My Articles</h2>
+<h2>Reporter Dashboard</h2>
 
-<a href="/create-article/">Create New Article</a>
-<br><br>
+<a href="/create-article/" class="btn btn-primary mb-3">Create Article</a>
 
-<table border="1">
+<table class="table table-bordered">
 
 <tr>
 <th>Title</th>
@@ -34,5 +26,4 @@
 
 </table>
 
-</body>
-</html>
+{% endblock %}

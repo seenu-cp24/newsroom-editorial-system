@@ -14,7 +14,6 @@
 <th>Title</th>
 <th>Reporter</th>
 <th>Status</th>
-<th>Editor Comment</th>
 <th>Action</th>
 </tr>
 
@@ -34,25 +33,10 @@
 
 {% if article.status == "submitted" %}
 <span class="badge bg-warning text-dark">Submitted</span>
-
 {% elif article.status == "subeditor_review" %}
 <span class="badge bg-info text-dark">In Review</span>
-
 {% elif article.status == "editor_sent_back" %}
 <span class="badge bg-danger">Sent Back by Editor</span>
-
-{% endif %}
-
-</td>
-
-<td>
-
-{% if article.editor_comment %}
-<span class="text-danger">
-{{ article.editor_comment }}
-</span>
-{% else %}
-<span class="text-muted">-</span>
 {% endif %}
 
 </td>
@@ -70,7 +54,7 @@ Edit
 {% empty %}
 
 <tr>
-<td colspan="5" class="text-center">
+<td colspan="4" class="text-center">
 No articles available
 </td>
 </tr>

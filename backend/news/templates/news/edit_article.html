@@ -1,28 +1,170 @@
-<!DOCTYPE html>
-<html>
+{% extends "base.html" %}
 
-<head>
-<title>Edit Article</title>
-</head>
+{% block content %}
 
-<body>
+<h2>Edit Article</h2>
 
-<h1>Edit Article</h1>
+{% if error %}
+<div class="alert alert-danger">
+{{ error }}
+</div>
+{% endif %}
 
 <form method="POST">
 
 {% csrf_token %}
 
-<label>Title</label><br>
-<input type="text" name="title" value="{{ article.title }}"><br><br>
+<div class="mb-3">
 
-<label>Content</label><br>
-<textarea name="content" rows="10" cols="50">{{ article.content }}</textarea><br><br>
+<label class="form-label">Title</label>
 
-<button type="submit">Send to Editor</button>
+<input type="text"
+       name="title"
+       value="{{ article.title }}"
+       class="form-control">
+
+</div>
+
+
+<div class="mb-3">
+
+<label class="form-label">Content</label>
+
+<textarea name="content"
+          rows="10"
+          class="form-control">{{ article.content }}</textarea>
+
+</div>
+
+
+<h4 class="mt-4">Article Images</h4>
+
+<div class="row">
+
+{% for image in article.images.all %}
+
+<div class="col-md-3 mb-3">
+
+<div class="card">
+
+<img src="{{ image.image.url }}" class="card-img-top">
+
+<div class="card-body">
+
+<p class="card-text">{{ image.caption }}</p>
+
+</div>
+
+</div>
+
+</div>
+
+{% empty %}
+
+<p class="text-muted">No images available</p>
+
+{% endfor %}
+
+</div>
+
+
+{% if request.user.userprofile.role == "editor" %}
+
+<div class="mb-3">
+
+<label class="form-label">Assign Page Number</label>
+
+<input type="number"
+       name="page_number"
+       value="{{ article.page_number }}"
+       class="form-control"
+       required>
+
+</div>
+
+
+<button type="submit" class="btn btn-success">
+Approve Article
+</button>
+
+
+<a href="/send-back/{{ article.id }}/" class="btn btn-warning">
+Send Back to SubEditor
+</a>
+
+
+{% elif request.user.userprofile.role == "subeditor" %}
+
+<button type="submit" class="btn btn-primary">
+Send to Editor
+</button>
+
+{% endif %}
 
 </form>
 
-</body>
 
-</html>
+<hr class="mt-5">
+
+
+<h3>Article Version History</h3>
+
+<table class="table table-bordered table-striped">
+
+<thead class="table-dark">
+
+<tr>
+<th>Edited By</th>
+<th>Edited At</th>
+<th>Title</th>
+<th>Action</th>
+</tr>
+
+</thead>
+
+<tbody>
+
+{% for version in versions %}
+
+<tr>
+
+<td>{{ version.edited_by.username }}</td>
+
+<td>{{ version.edited_at }}</td>
+
+<td>{{ version.title }}</td>
+
+<td>
+
+{% if request.user.userprofile.role == "editor" %}
+
+<a href="/restore-version/{{ version.id }}/"
+   class="btn btn-sm btn-secondary">
+Restore
+</a>
+
+{% else %}
+
+-
+
+{% endif %}
+
+</td>
+
+</tr>
+
+{% empty %}
+
+<tr>
+<td colspan="4" class="text-center">
+No previous versions available
+</td>
+</tr>
+
+{% endfor %}
+
+</tbody>
+
+</table>
+
+{% endblock %}

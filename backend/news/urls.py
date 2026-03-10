@@ -19,4 +19,8 @@ urlpatterns = [
 
     path('publish-article/<int:article_id>/', views.publish_article, name='publish_article'),
 
+    path('send-back/<int:article_id>/', views.send_back_to_subeditor, name='send_back_to_subeditor'),
+
+    path('restore-version/<int:version_id>/', views.restore_version, name='restore_version'),
+
 ]

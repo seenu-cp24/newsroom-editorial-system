@@ -1,7 +1,7 @@
+from .models import Article, ArticleImage, ArticleVersion
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-
-from .models import Article, ArticleImage, ArticleVersion, Category
+'''from .models import Article'''
 from .forms import ArticleForm
 
 
@@ -14,49 +14,43 @@ def reporter_dashboard(request):
         'articles': articles
     })
 
-
 @login_required
 def create_article(request):
 
-    categories = Category.objects.all()
-
     if request.method == 'POST':
 
-        title = request.POST.get('title')
-        content = request.POST.get('content')
-        category_id = request.POST.get('category')
+        form = ArticleForm(request.POST)
 
-        category = Category.objects.get(id=category_id)
-
-        article = Article.objects.create(
-            title=title,
-            content=content,
-            category=category,
-            reporter=request.user,
-            status='submitted'
-        )
-
-        # multiple images
         images = request.FILES.getlist('images')
         captions = request.POST.getlist('captions')
 
-        for i, image in enumerate(images):
+        if form.is_valid():
 
-            caption = ""
+            article = form.save(commit=False)
+            article.reporter = request.user
+            article.status = 'submitted'
+            article.save()
 
-            if i < len(captions):
-                caption = captions[i]
+            for i, image in enumerate(images):
 
-            ArticleImage.objects.create(
-                article=article,
-                image=image,
-                caption=caption
-            )
+                caption = ""
 
-        return redirect('/reporter-dashboard/')
+                if i < len(captions):
+                    caption = captions[i]
+
+                ArticleImage.objects.create(
+                    article=article,
+                    image=image,
+                    caption=caption
+                )
+
+            return redirect('/reporter-dashboard/')
+
+    else:
+        form = ArticleForm()
 
     return render(request, 'news/create_article.html', {
-        'categories': categories
+        'form': form
     })
 
 
@@ -64,13 +58,12 @@ def create_article(request):
 def subeditor_dashboard(request):
 
     articles = Article.objects.filter(
-        status__in=['submitted', 'subeditor_review', 'editor_sent_back']
+        status__in=['submitted', 'subeditor_review']
     )
 
     return render(request, 'news/subeditor_dashboard.html', {
         'articles': articles
     })
-
 
 @login_required
 def edit_article(request, article_id):
@@ -125,7 +118,6 @@ def edit_article(request, article_id):
         'versions': versions
     })
 
-
 @login_required
 def editor_dashboard(request):
 
@@ -145,6 +137,7 @@ def approve_article(request, article_id):
 
         page_number = request.POST.get('page_number')
 
+        # Convert page number safely
         if page_number:
             article.page_number = int(page_number)
         else:
@@ -182,26 +175,16 @@ def publish_article(request, article_id):
 
     return redirect('/pagination-dashboard/')
 
-
 @login_required
 def send_back_to_subeditor(request, article_id):
 
     article = Article.objects.get(id=article_id)
 
-    if request.method == 'POST':
+    article.status = 'subeditor_review'
 
-        comment = request.POST.get('editor_comment')
+    article.save()
 
-        article.editor_comment = comment
-        article.status = 'editor_sent_back'
-
-        article.save()
-
-        return redirect('/editor-dashboard/')
-
-    return render(request, 'news/send_back.html', {
-        'article': article
-    })
+    return redirect('/editor-dashboard/')
 
 @login_required
 def restore_version(request, version_id):
@@ -210,7 +193,7 @@ def restore_version(request, version_id):
 
     article = version.article
 
-    # Save current version
+    # Save current version before restoring
     ArticleVersion.objects.create(
         article=article,
         title=article.title,
@@ -218,7 +201,7 @@ def restore_version(request, version_id):
         edited_by=request.user
     )
 
-    # Restore old content
+    # Restore old version
     article.title = version.title
     article.content = version.content
 

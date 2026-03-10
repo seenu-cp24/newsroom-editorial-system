@@ -1,28 +1,91 @@
-<!DOCTYPE html>
-<html>
+{% extends "base.html" %}
 
-<head>
-<title>Create Article</title>
-</head>
+{% block content %}
 
-<body>
+<h2>Create Article</h2>
 
-<h1>Create News Article</h1>
-
-<form method="POST">
+<form method="POST" enctype="multipart/form-data">
 
 {% csrf_token %}
 
-{{ form.as_p }}
 
-<button type="submit">Submit Article</button>
+<div class="mb-3">
+
+<label class="form-label">Title</label>
+
+<input type="text"
+       name="title"
+       class="form-control"
+       required>
+
+</div>
+
+
+<div class="mb-3">
+
+<label class="form-label">Content</label>
+
+<textarea name="content"
+          rows="8"
+          class="form-control"
+          required></textarea>
+
+</div>
+
+
+<div class="mb-3">
+
+<label class="form-label">Category</label>
+
+<select name="category" class="form-select">
+
+{% for category in categories %}
+
+<option value="{{ category.id }}">
+{{ category.name }}
+</option>
+
+{% endfor %}
+
+</select>
+
+</div>
+
+
+<h4 class="mt-4">Upload Images</h4>
+
+<div class="mb-3">
+
+<label class="form-label">Select Images</label>
+
+<input type="file"
+       name="images"
+       multiple
+       class="form-control">
+
+</div>
+
+
+<div class="mb-3">
+
+<label class="form-label">Image Caption</label>
+
+<input type="text"
+       name="caption"
+       class="form-control">
+
+</div>
+
+
+<button type="submit" class="btn btn-primary">
+Submit Article
+</button>
+
+
+<a href="/reporter-dashboard/" class="btn btn-secondary">
+Cancel
+</a>
 
 </form>
 
-<br>
-
-<a href="/reporter-dashboard/">Back to Dashboard</a>
-
-</body>
-
-</html>
+{% endblock %}

@@ -9,17 +9,31 @@
 
 <h1>Approve Article</h1>
 
+<h2>{{ article.title }}</h2>
+
+<p>{{ article.content }}</p>
+
+<h3>Article Images</h3>
+
+{% for image in article.images.all %}
+
+<div style="margin-bottom:20px;">
+
+<img src="{{ image.image.url }}" width="300"><br>
+
+Caption: {{ image.caption }}
+
+</div>
+
+{% endfor %}
+
 <form method="POST">
 
 {% csrf_token %}
 
-<h3>{{ article.title }}</h3>
-
 <label>Assign Page Number</label><br>
 
-<input type="number" name="page_number">
-
-<br><br>
+<input type="number" name="page_number"><br><br>
 
 <button type="submit">Approve Article</button>
 
