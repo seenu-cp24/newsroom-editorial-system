@@ -110,3 +110,43 @@ class ArticleVersion(models.Model):
 
     def __str__(self):
         return f"Version of {self.article.title} by {self.edited_by.username}"
+
+class ArticleActivity(models.Model):
+
+    article = models.ForeignKey(
+        Article,
+        on_delete=models.CASCADE,
+        related_name="activities"
+    )
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE
+    )
+
+    action = models.CharField(max_length=255)
+
+    comment = models.TextField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.article.title} - {self.action}"
+
+
+class PageLayout(models.Model):
+
+    page_number = models.IntegerField()
+
+    slot_number = models.IntegerField()
+
+    article = models.ForeignKey(
+        Article,
+        on_delete=models.CASCADE
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+
+        return f"Page {self.page_number} - Slot {self.slot_number}"

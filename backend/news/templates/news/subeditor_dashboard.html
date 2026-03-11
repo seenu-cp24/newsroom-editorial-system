@@ -4,7 +4,81 @@
 
 <h2>SubEditor Dashboard</h2>
 
+<a href="/create-article/" class="btn btn-primary mb-3">
+Create Article
+</a>
+
 <h5 class="mb-3">Articles Waiting for Review</h5>
+
+<div class="mb-3">
+
+{% if new_articles > 0 %}
+<div class="alert alert-warning">
+🔔 {{ new_articles }} New Articles Submitted
+</div>
+{% endif %}
+
+{% if sent_back_articles > 0 %}
+<div class="alert alert-danger">
+🔔 {{ sent_back_articles }} Articles Sent Back by Editor
+</div>
+{% endif %}
+
+</div>
+
+<form method="GET" class="row mb-4">
+
+<div class="col-md-4">
+
+<input type="text"
+       name="search"
+       placeholder="Search articles..."
+       class="form-control"
+       value="{{ request.GET.search }}">
+
+</div>
+
+<div class="col-md-3">
+
+<select name="category" class="form-select">
+
+<option value="">All Categories</option>
+
+{% for category in categories %}
+
+<option value="{{ category.id }}">
+{{ category.name }}
+</option>
+
+{% endfor %}
+
+</select>
+
+</div>
+
+<div class="col-md-3">
+
+<select name="status" class="form-select">
+
+<option value="">All Status</option>
+
+<option value="submitted">Submitted</option>
+<option value="subeditor_review">In Review</option>
+<option value="editor_sent_back">Sent Back</option>
+
+</select>
+
+</div>
+
+<div class="col-md-2">
+
+<button type="submit" class="btn btn-primary w-100">
+Search
+</button>
+
+</div>
+
+</form>
 
 <table class="table table-striped table-bordered">
 

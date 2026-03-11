@@ -1,0 +1,5 @@
+<@Headline>Test Article - 4
+<@Category>Local
+<@Reporter>reporter1
+<@BodyText>This is a test article for Sub Editors review. THIS IS EDITED AND SUBMITING TO EDITORS APPROVAL. This is approved.
+<@Caption>

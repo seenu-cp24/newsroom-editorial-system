@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+{% load layout_tags %}
+
+{% block content %}
+
+<h2>Page Layout Planner</h2>
+
+<form method="GET" class="mb-3">
+
+<label>Select Page</label>
+
+<select name="page" class="form-select w-25" onchange="this.form.submit()">
+
+{% for i in "1234567890123456" %}
+
+<option value="{{ forloop.counter }}"
+{% if page_number|stringformat:"s" == forloop.counter|stringformat:"s" %}
+selected
+{% endif %}
+>
+Page {{ forloop.counter }}
+</option>
+
+{% endfor %}
+
+</select>
+
+</form>
+
+
+<div class="row">
+
+<!-- LEFT PANEL -->
+
+<div class="col-md-4">
+
+<h4>Available Stories</h4>
+
+<ul id="article-list" class="list-group">
+
+{% for article in articles %}
+
+<li class="list-group-item draggable"
+draggable="true"
+data-id="{{ article.id }}">
+
+{{ article.title }}
+
+</li>
+
+{% empty %}
+
+<li class="list-group-item text-muted">
+No articles available
+</li>
+
+{% endfor %}
+
+</ul>
+
+</div>
+
+
+<!-- RIGHT PANEL -->
+
+<div class="col-md-8">
+
+<h4>Page {{ page_number }} Layout</h4>
+
+<div class="row">
+
+{% for i in "1234567890123456" %}
+
+<div class="col-md-3 mb-3">
+
+<div class="drop-zone border p-3 text-center"
+data-slot="{{ forloop.counter }}"
+data-page="{{ page_number }}">
+
+<strong>Slot {{ forloop.counter }}</strong>
+
+{% with layouts|get_item:forloop.counter as slot_article %}
+
+{% if slot_article %}
+
+<br>
+<strong>{{ slot_article.title }}</strong>
+
+{% endif %}
+
+{% endwith %}
+
+</div>
+
+</div>
+
+{% endfor %}
+
+</div>
+
+</div>
+
+</div>
+
+
+<br>
+
+<a href="/export-page/{{ page_number }}/"
+class="btn btn-success">
+
+Export Page {{ page_number }} XML
+
+</a>
+
+<a href="/export-quark/{{ page_number }}/"
+class="btn btn-warning">
+
+Export Page {{ page_number }} Quark Tagged
+
+</a>
+
+
+<script>
+
+function getCookie(name) {
+
+let cookieValue = null;
+
+if (document.cookie && document.cookie !== '') {
+
+const cookies = document.cookie.split(';');
+
+for (let i = 0; i < cookies.length; i++) {
+
+const cookie = cookies[i].trim();
+
+if (cookie.substring(0, name.length + 1) === (name + '=')) {
+
+cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+break;
+
+}
+
+}
+
+}
+
+return cookieValue;
+
+}
+
+const csrftoken = getCookie('csrftoken');
+
+let draggedArticle = null;
+
+
+document.querySelectorAll(".draggable").forEach(item => {
+
+item.addEventListener("dragstart", function(){
+
+draggedArticle = this;
+
+});
+
+});
+
+
+document.querySelectorAll(".drop-zone").forEach(zone => {
+
+zone.addEventListener("dragover", function(e){
+
+e.preventDefault();
+
+});
+
+
+zone.addEventListener("drop", function(){
+
+let articleId = draggedArticle.dataset.id;
+let slotNumber = this.dataset.slot;
+let pageNumber = this.dataset.page;
+
+this.innerHTML = draggedArticle.innerText;
+
+draggedArticle.style.display = "none";
+
+fetch("/save-page-layout/", {
+
+method: "POST",
+
+headers: {
+"Content-Type": "application/x-www-form-urlencoded",
+"X-CSRFToken": csrftoken
+},
+
+body: `article_id=${articleId}&slot_number=${slotNumber}&page_number=${pageNumber}`
+
+})
+.then(response => response.json())
+.then(data => {
+
+console.log("Layout saved");
+
+});
+
+});
+
+});
+
+</script>
+
+{% endblock %}

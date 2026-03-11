@@ -168,3 +168,60 @@ No previous versions available
 </table>
 
 {% endblock %}
+
+<hr class="mt-5">
+
+<h3>Article Activity Timeline</h3>
+
+<table class="table table-bordered table-striped">
+
+<thead class="table-dark">
+
+<tr>
+<th>User</th>
+<th>Action</th>
+<th>Comment</th>
+<th>Date</th>
+</tr>
+
+</thead>
+
+<tbody>
+
+{% for activity in activities %}
+
+<tr>
+
+<td>{{ activity.user.username }}</td>
+
+<td>{{ activity.action }}</td>
+
+<td>
+
+{% if activity.comment %}
+<span class="text-danger">
+{{ activity.comment }}
+</span>
+{% else %}
+-
+{% endif %}
+
+</td>
+
+<td>{{ activity.created_at }}</td>
+
+</tr>
+
+{% empty %}
+
+<tr>
+<td colspan="4" class="text-center">
+No activity recorded yet
+</td>
+</tr>
+
+{% endfor %}
+
+</tbody>
+
+</table>

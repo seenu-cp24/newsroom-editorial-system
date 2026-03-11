@@ -1,0 +1,5 @@
+<@Headline>More Rains in Hyderabad
+<@Category>Local
+<@Reporter>reporter1
+<@BodyText>Hyderabad is flooded with heavy rains, all the roads are filled with drainage water. People are not coming out of their houses. Government is declared holidays for Schools.
+<@Caption>Heavy rains in Hyderabad

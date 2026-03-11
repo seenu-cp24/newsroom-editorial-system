@@ -23,4 +23,14 @@ urlpatterns = [
 
     path('restore-version/<int:version_id>/', views.restore_version, name='restore_version'),
 
+    path('export-article/<int:article_id>/', views.export_article_xml, name='export_article_xml'),
+
+    path('page-layout-planner/', views.page_layout_planner, name='page_layout_planner'),
+
+    path('save-page-layout/', views.save_page_layout, name='save_page_layout'),
+
+    path('export-page/<int:page_number>/', views.export_page_package, name='export_page_package'),
+
+    path('export-quark/<int:page_number>/', views.export_quark_tagged_page, name='export_quark_tagged_page'),
+
 ]
