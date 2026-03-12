@@ -2,9 +2,28 @@ from django.db import models
 from django.contrib.auth.models import User
 
 
+# Editions
+class Edition(models.Model):
+
+    name = models.CharField(max_length=200)
+
+    total_pages = models.IntegerField(default=16)
+
+    def __str__(self):
+        return self.name
+
+
 # News Categories
 class Category(models.Model):
+
     name = models.CharField(max_length=200)
+
+    edition = models.ForeignKey(
+        Edition,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
+    )
 
     def __str__(self):
         return self.name
@@ -32,6 +51,14 @@ class Article(models.Model):
         on_delete=models.CASCADE
     )
 
+    # NEW FIELD (important for edition control)
+    edition = models.ForeignKey(
+        Edition,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
+    )
+
     reporter = models.ForeignKey(
         User,
         on_delete=models.CASCADE
@@ -49,7 +76,10 @@ class Article(models.Model):
         blank=True
     )
 
-    editor_comment = models.TextField(null=True, blank=True)    
+    editor_comment = models.TextField(
+        null=True,
+        blank=True
+    )
 
     created_at = models.DateTimeField(
         auto_now_add=True
@@ -89,6 +119,7 @@ class ArticleImage(models.Model):
         return f"Image for {self.article.title}"
 
 
+# Article Version History
 class ArticleVersion(models.Model):
 
     article = models.ForeignKey(
@@ -106,11 +137,15 @@ class ArticleVersion(models.Model):
         on_delete=models.CASCADE
     )
 
-    edited_at = models.DateTimeField(auto_now_add=True)
+    edited_at = models.DateTimeField(
+        auto_now_add=True
+    )
 
     def __str__(self):
         return f"Version of {self.article.title} by {self.edited_by.username}"
 
+
+# Article Activity Log
 class ArticleActivity(models.Model):
 
     article = models.ForeignKey(
@@ -126,14 +161,20 @@ class ArticleActivity(models.Model):
 
     action = models.CharField(max_length=255)
 
-    comment = models.TextField(null=True, blank=True)
+    comment = models.TextField(
+        null=True,
+        blank=True
+    )
 
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(
+        auto_now_add=True
+    )
 
     def __str__(self):
         return f"{self.article.title} - {self.action}"
 
 
+# Pagination Page Layout
 class PageLayout(models.Model):
 
     page_number = models.IntegerField()
@@ -145,8 +186,9 @@ class PageLayout(models.Model):
         on_delete=models.CASCADE
     )
 
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(
+        auto_now_add=True
+    )
 
     def __str__(self):
-
         return f"Page {self.page_number} - Slot {self.slot_number}"

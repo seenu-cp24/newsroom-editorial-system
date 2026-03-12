@@ -1,3 +1,10 @@
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent

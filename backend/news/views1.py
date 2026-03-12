@@ -1,36 +1,55 @@
-from .models import PageLayout
 import os
 import zipfile
 import xml.etree.ElementTree as ET
-from django.http import FileResponse
+
+from .ai_services import generate_article_from_notes
 from django.shortcuts import render, redirect
+from django.http import FileResponse, JsonResponse
 from django.contrib.auth.decorators import login_required
+from django.db.models import Q
 
 from .models import (
     Article,
     ArticleImage,
     ArticleVersion,
     Category,
-    ArticleActivity
+    ArticleActivity,
+    PageLayout
 )
 
 from .forms import ArticleForm
 
 
+# -----------------------------------
+# REPORTER DASHBOARD
+# -----------------------------------
+
 @login_required
 def reporter_dashboard(request):
 
-    articles = Article.objects.filter(reporter=request.user)
+    user_edition = request.user.userprofile.edition
+
+    articles = Article.objects.filter(
+        reporter=request.user,
+        edition=user_edition
+    )
 
     return render(request, 'news/reporter_dashboard.html', {
         'articles': articles
     })
 
+# -----------------------------------
+# CREATE ARTICLE
+# -----------------------------------
 
 @login_required
 def create_article(request):
 
-    categories = Category.objects.all()
+    user_edition = request.user.userprofile.edition
+
+    categories = Category.objects.filter(
+        edition=user_edition
+    )
 
     if request.method == 'POST':
 
@@ -42,7 +61,6 @@ def create_article(request):
 
         role = request.user.userprofile.role
 
-        # Set initial status depending on role
         if role == 'reporter':
             status = 'submitted'
         elif role == 'subeditor':
@@ -57,10 +75,10 @@ def create_article(request):
             content=content,
             category=category,
             reporter=request.user,
+            edition=user_edition,
             status=status
         )
 
-        # Activity log
         ArticleActivity.objects.create(
             article=article,
             user=request.user,
@@ -72,10 +90,7 @@ def create_article(request):
 
         for i, image in enumerate(images):
 
-            caption = ""
-
-            if i < len(captions):
-                caption = captions[i]
+            caption = captions[i] if i < len(captions) else ""
 
             ArticleImage.objects.create(
                 article=article,
@@ -83,7 +98,6 @@ def create_article(request):
                 caption=caption
             )
 
-        # Redirect based on role
         if role == 'reporter':
             return redirect('/reporter-dashboard/')
         elif role == 'subeditor':
@@ -95,13 +109,17 @@ def create_article(request):
         'categories': categories
     })
 
-from django.db.models import Q
-
+# -----------------------------------
+# SUBEDITOR DASHBOARD
+# -----------------------------------
 
 @login_required
 def subeditor_dashboard(request):
 
+    user_edition = request.user.userprofile.edition
+
     articles = Article.objects.filter(
+        edition=user_edition,
         status__in=['submitted', 'subeditor_review', 'editor_sent_back']
     )
 
@@ -121,11 +139,17 @@ def subeditor_dashboard(request):
     if status_filter:
         articles = articles.filter(status=status_filter)
 
-    categories = Category.objects.all()
+    categories = Category.objects.filter(
+        edition=user_edition
+    )
 
-    new_articles = Article.objects.filter(status='submitted').count()
+    new_articles = Article.objects.filter(
+        edition=user_edition,
+        status='submitted'
+    ).count()
 
     sent_back_articles = Article.objects.filter(
+        edition=user_edition,
         status='editor_sent_back'
     ).count()
 
@@ -136,6 +160,10 @@ def subeditor_dashboard(request):
         'sent_back_articles': sent_back_articles
     })
 
+# -----------------------------------
+# EDIT ARTICLE
+# -----------------------------------
+
 @login_required
 def edit_article(request, article_id):
 
@@ -143,7 +171,6 @@ def edit_article(request, article_id):
 
     if request.method == 'POST':
 
-        # Save previous version
         ArticleVersion.objects.create(
             article=article,
             title=article.title,
@@ -161,6 +188,7 @@ def edit_article(request, article_id):
             page_number = request.POST.get('page_number')
 
             if not page_number:
+
                 return render(request, 'news/edit_article.html', {
                     'article': article,
                     'versions': article.versions.all().order_by('-edited_at'),
@@ -169,7 +197,6 @@ def edit_article(request, article_id):
 
             article.page_number = int(page_number)
             article.status = 'editor_approved'
-
             article.save()
 
             ArticleActivity.objects.create(
@@ -183,7 +210,6 @@ def edit_article(request, article_id):
         elif role == 'subeditor':
 
             article.status = 'subeditor_review'
-
             article.save()
 
             ArticleActivity.objects.create(
@@ -204,6 +230,10 @@ def edit_article(request, article_id):
     })
 
 
+# -----------------------------------
+# EDITOR DASHBOARD
+# -----------------------------------
+
 @login_required
 def editor_dashboard(request):
 
@@ -217,6 +247,10 @@ def editor_dashboard(request):
     })
 
 
+# -----------------------------------
+# APPROVE ARTICLE
+# -----------------------------------
+
 @login_required
 def approve_article(request, article_id):
 
@@ -226,13 +260,8 @@ def approve_article(request, article_id):
 
         page_number = request.POST.get('page_number')
 
-        if page_number:
-            article.page_number = int(page_number)
-        else:
-            article.page_number = None
-
+        article.page_number = int(page_number) if page_number else None
         article.status = 'editor_approved'
-
         article.save()
 
         ArticleActivity.objects.create(
@@ -248,6 +277,10 @@ def approve_article(request, article_id):
     })
 
 
+# -----------------------------------
+# PAGINATION DASHBOARD
+# -----------------------------------
+
 @login_required
 def pagination_dashboard(request):
 
@@ -260,6 +293,10 @@ def pagination_dashboard(request):
         'ready_for_pagination': ready_for_pagination
     })
 
+
+# -----------------------------------
+# PUBLISH ARTICLE
+# -----------------------------------
 
 @login_required
 def publish_article(request, article_id):
@@ -278,6 +315,10 @@ def publish_article(request, article_id):
     return redirect('/pagination-dashboard/')
 
 
+# -----------------------------------
+# SEND BACK TO SUBEDITOR
+# -----------------------------------
+
 @login_required
 def send_back_to_subeditor(request, article_id):
 
@@ -289,7 +330,6 @@ def send_back_to_subeditor(request, article_id):
 
         article.editor_comment = comment
         article.status = 'editor_sent_back'
-
         article.save()
 
         ArticleActivity.objects.create(
@@ -306,14 +346,16 @@ def send_back_to_subeditor(request, article_id):
     })
 
 
+# -----------------------------------
+# RESTORE ARTICLE VERSION
+# -----------------------------------
+
 @login_required
 def restore_version(request, version_id):
 
     version = ArticleVersion.objects.get(id=version_id)
-
     article = version.article
 
-    # Save current version
     ArticleVersion.objects.create(
         article=article,
         title=article.title,
@@ -332,6 +374,112 @@ def restore_version(request, version_id):
     )
 
     return redirect(f'/edit-article/{article.id}/')
+
+
+# -----------------------------------
+# PAGE LAYOUT PLANNER
+# -----------------------------------
+
+@login_required
+def page_layout_planner(request):
+
+    page_number = request.GET.get("page", 1)
+
+    layouts = PageLayout.objects.filter(page_number=page_number)
+
+    # Convert layouts to dictionary {slot: article}
+    layout_dict = {}
+
+    for layout in layouts:
+        layout_dict[layout.slot_number] = layout.article
+
+    used_articles = layouts.values_list("article_id", flat=True)
+
+    articles = Article.objects.filter(
+        status="editor_approved",
+        page_number=page_number
+    ).exclude(id__in=used_articles)
+
+    return render(request, "news/page_layout_planner.html", {
+        "articles": articles,
+        "layouts": layout_dict,
+        "page_number": page_number
+    })
+
+
+# -----------------------------------
+# SAVE PAGE LAYOUT (AJAX)
+# -----------------------------------
+
+@login_required
+def save_page_layout(request):
+
+    if request.method == "POST":
+
+        article_id = request.POST.get("article_id")
+        slot_number = request.POST.get("slot_number")
+        page_number = request.POST.get("page_number")
+
+        article = Article.objects.get(id=article_id)
+
+        PageLayout.objects.filter(
+            page_number=page_number,
+            slot_number=slot_number
+        ).delete()
+
+        PageLayout.objects.create(
+            page_number=page_number,
+            slot_number=slot_number,
+            article=article
+        )
+
+        return JsonResponse({"status": "saved"})
+
+
+# -----------------------------------
+# EXPORT PAGE PACKAGE
+# -----------------------------------
+
+@login_required
+def export_page_package(request, page_number):
+
+    layouts = PageLayout.objects.filter(page_number=page_number)
+
+    export_dir = f"/home/ubuntu/newsroom/exports/page_{page_number}"
+
+    if not os.path.exists(export_dir):
+        os.makedirs(export_dir)
+
+    zip_path = f"/home/ubuntu/newsroom/exports/page_{page_number}.zip"
+
+    for layout in layouts:
+
+        article = layout.article
+
+        xml_file = f"{export_dir}/article_{article.id}.xml"
+
+        root = ET.Element("article")
+
+        ET.SubElement(root, "title").text = article.title
+        ET.SubElement(root, "category").text = article.category.name
+        ET.SubElement(root, "page").text = str(article.page_number)
+        ET.SubElement(root, "reporter").text = article.reporter.username
+        ET.SubElement(root, "content").text = article.content
+
+        tree = ET.ElementTree(root)
+        tree.write(xml_file)
+
+    with zipfile.ZipFile(zip_path, 'w') as zipf:
+
+        for file in os.listdir(export_dir):
+
+            zipf.write(
+                os.path.join(export_dir, file),
+                file
+            )
+
+    return FileResponse(open(zip_path, 'rb'), as_attachment=True)
+
 
 @login_required
 def export_article_xml(request, article_id):
@@ -371,13 +519,13 @@ def export_article_xml(request, article_id):
         image_node = ET.SubElement(images_node, "image")
 
         file_node = ET.SubElement(image_node, "file")
+
         filename = os.path.basename(img.image.path)
         file_node.text = filename
 
         caption_node = ET.SubElement(image_node, "caption")
         caption_node.text = img.caption
 
-        # copy image into export folder
         os.system(f"cp {img.image.path} {export_dir}/{filename}")
 
     tree = ET.ElementTree(root)
@@ -395,122 +543,44 @@ def export_article_xml(request, article_id):
 
     return FileResponse(open(zip_path, 'rb'), as_attachment=True)
 
+
+#--------------------------------
+# QUARK EXPORT FUNCTION
+#--------------------------------
 @login_required
-def page_layout_planner(request):
-
-    page_number = request.GET.get("page", 1)
-
-    # Layouts already assigned to this page
-    layouts = PageLayout.objects.filter(page_number=page_number)
-
-    used_articles = layouts.values_list("article_id", flat=True)
-
-    # Only show articles assigned to this page
-    articles = Article.objects.filter(
-        status="editor_approved",
-        page_number=page_number
-    ).exclude(id__in=used_articles)
-
-    return render(request, "news/page_layout_planner.html", {
-        "articles": articles,
-        "layouts": layouts,
-        "page_number": page_number
-    })
-
-
-from django.http import JsonResponse
-
-
-from django.http import JsonResponse
-
-@login_required
-def save_page_layout(request):
-
-    if request.method == "POST":
-
-        article_id = request.POST.get("article_id")
-        slot_number = request.POST.get("slot_number")
-        page_number = request.POST.get("page_number")
-
-        article = Article.objects.get(id=article_id)
-
-        PageLayout.objects.filter(
-            page_number=page_number,
-            slot_number=slot_number
-        ).delete()
-
-        PageLayout.objects.create(
-            page_number=page_number,
-            slot_number=slot_number,
-            article=article
-        )
-
-        return JsonResponse({"status": "saved"})
-
-import os
-import zipfile
-import xml.etree.ElementTree as ET
-from django.http import FileResponse
-
-
-@login_required
-def export_page_package(request, page_number):
+def export_quark_tagged_page(request, page_number):
 
     layouts = PageLayout.objects.filter(page_number=page_number)
 
-    export_dir = f"/home/ubuntu/newsroom/exports/page_{page_number}"
+    export_dir = f"/home/ubuntu/newsroom/exports/quark_page_{page_number}"
 
     if not os.path.exists(export_dir):
         os.makedirs(export_dir)
 
-    zip_path = f"/home/ubuntu/newsroom/exports/page_{page_number}.zip"
+    zip_path = f"/home/ubuntu/newsroom/exports/quark_page_{page_number}.zip"
 
     for layout in layouts:
 
         article = layout.article
 
-        xml_file = f"{export_dir}/article_{article.id}.xml"
+        txt_file = f"{export_dir}/article_{article.id}.txt"
 
-        root = ET.Element("article")
+        with open(txt_file, "w") as f:
 
-        title = ET.SubElement(root, "title")
-        title.text = article.title
+            f.write(f"<@Headline>{article.title}\n")
+            f.write(f"<@Category>{article.category.name}\n")
+            f.write(f"<@Reporter>{article.reporter.username}\n")
+            f.write(f"<@BodyText>{article.content}\n")
 
-        category = ET.SubElement(root, "category")
-        category.text = article.category.name
+            images = ArticleImage.objects.filter(article=article)
 
-        page = ET.SubElement(root, "page")
-        page.text = str(article.page_number)
+            for img in images:
 
-        reporter = ET.SubElement(root, "reporter")
-        reporter.text = article.reporter.username
+                filename = os.path.basename(img.image.path)
 
-        content = ET.SubElement(root, "content")
-        content.text = article.content
+                f.write(f"<@Caption>{img.caption}\n")
 
-        images_node = ET.SubElement(root, "images")
-
-        images = ArticleImage.objects.filter(article=article)
-
-        for img in images:
-
-            image_node = ET.SubElement(images_node, "image")
-
-            file_node = ET.SubElement(image_node, "file")
-
-            filename = os.path.basename(img.image.path)
-
-            file_node.text = filename
-
-            caption_node = ET.SubElement(image_node, "caption")
-
-            caption_node.text = img.caption
-
-            os.system(f"cp {img.image.path} {export_dir}/{filename}")
-
-        tree = ET.ElementTree(root)
-
-        tree.write(xml_file)
+                os.system(f"cp {img.image.path} {export_dir}/{filename}")
 
     with zipfile.ZipFile(zip_path, 'w') as zipf:
 
@@ -522,3 +592,64 @@ def export_page_package(request, page_number):
             )
 
     return FileResponse(open(zip_path, 'rb'), as_attachment=True)
+
+from .ai_services import improve_article, generate_headline
+
+
+@login_required
+def ai_improve_article(request):
+
+    if request.method == "POST":
+
+        text = request.POST.get("content")
+
+        improved = improve_article(text)
+
+        return JsonResponse({
+            "improved_text": improved
+        })
+
+
+@login_required
+def ai_generate_headline(request):
+
+    if request.method == "POST":
+
+        text = request.POST.get("content")
+
+        headline = generate_headline(text)
+
+        return JsonResponse({
+            "headline": headline
+        })
+
+
+@login_required
+def ai_generate_article(request):
+
+    if request.method == "POST":
+
+        notes = request.POST.get("notes")
+
+        article = generate_article_from_notes(notes)
+
+        return JsonResponse({
+            "article": article
+        })
+
+"""
+@login_required
+def ai_generate_article_from_urls(request):
+
+    if request.method == "POST":
+
+        urls_text = request.POST.get("urls")
+
+        urls = urls_text.split("\n")
+
+        article = generate_article_from_urls(urls)
+
+        return JsonResponse({
+            "article": article
+        })
+"""

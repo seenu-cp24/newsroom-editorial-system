@@ -33,4 +33,12 @@ urlpatterns = [
 
     path('export-quark/<int:page_number>/', views.export_quark_tagged_page, name='export_quark_tagged_page'),
 
+    path('ai-improve-article/', views.ai_improve_article, name='ai_improve_article'),
+
+    path('ai-generate-headline/', views.ai_generate_headline, name='ai_generate_headline'),
+
+    path('ai-generate-article/', views.ai_generate_article, name='ai_generate_article'),
+
+#    path('ai-generate-from-urls/', views.ai_generate_article_from_urls, name='ai_generate_article_from_urls'),
+
 ]

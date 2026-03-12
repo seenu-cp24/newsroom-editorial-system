@@ -16,7 +16,7 @@ from .models import (
     PageLayout
 )
 
-from .forms import ArticleForm
+from .ai_services import improve_article, generate_headline, generate_article_from_notes
 
 
 # -----------------------------------
@@ -26,10 +26,15 @@ from .forms import ArticleForm
 @login_required
 def reporter_dashboard(request):
 
-    articles = Article.objects.filter(reporter=request.user)
+    edition = request.user.userprofile.edition
 
-    return render(request, 'news/reporter_dashboard.html', {
-        'articles': articles
+    articles = Article.objects.filter(
+        reporter=request.user,
+        edition=edition
+    )
+
+    return render(request,'news/reporter_dashboard.html',{
+        'articles':articles
     })
 
 
@@ -40,32 +45,41 @@ def reporter_dashboard(request):
 @login_required
 def create_article(request):
 
-    categories = Category.objects.all()
+    edition = request.user.userprofile.edition
 
-    if request.method == 'POST':
+    categories = Category.objects.filter(edition=edition)
 
-        title = request.POST.get('title')
-        content = request.POST.get('content')
-        category_id = request.POST.get('category')
+    if request.method == "POST":
 
-        category = Category.objects.get(id=category_id)
+        title = request.POST.get("title")
+        content = request.POST.get("content")
+        category_id = request.POST.get("category")
 
+        category = Category.objects.filter(id=category_id).first()
+
+        if not category:
+            return redirect('/create-article/')
+        
         role = request.user.userprofile.role
 
-        if role == 'reporter':
-            status = 'submitted'
-        elif role == 'subeditor':
-            status = 'subeditor_review'
-        elif role == 'editor':
-            status = 'editor_approved'
+        if role == "reporter":
+            status = "submitted"
+
+        elif role == "subeditor":
+            status = "subeditor_review"
+
+        elif role == "editor":
+            status = "editor_approved"
+
         else:
-            status = 'submitted'
+            status = "submitted"
 
         article = Article.objects.create(
             title=title,
             content=content,
             category=category,
             reporter=request.user,
+            edition=edition,
             status=status
         )
 
@@ -75,10 +89,10 @@ def create_article(request):
             action=f"{role.capitalize()} created the article"
         )
 
-        images = request.FILES.getlist('images')
-        captions = request.POST.getlist('captions')
+        images = request.FILES.getlist("images")
+        captions = request.POST.getlist("captions")
 
-        for i, image in enumerate(images):
+        for i,image in enumerate(images):
 
             caption = captions[i] if i < len(captions) else ""
 
@@ -88,15 +102,17 @@ def create_article(request):
                 caption=caption
             )
 
-        if role == 'reporter':
-            return redirect('/reporter-dashboard/')
-        elif role == 'subeditor':
-            return redirect('/subeditor-dashboard/')
-        elif role == 'editor':
-            return redirect('/editor-dashboard/')
+        if role == "reporter":
+            return redirect("/reporter-dashboard/")
 
-    return render(request, 'news/create_article.html', {
-        'categories': categories
+        elif role == "subeditor":
+            return redirect("/subeditor-dashboard/")
+
+        elif role == "editor":
+            return redirect("/editor-dashboard/")
+
+    return render(request,"news/create_article.html",{
+        "categories":categories
     })
 
 
@@ -107,39 +123,49 @@ def create_article(request):
 @login_required
 def subeditor_dashboard(request):
 
+    edition = request.user.userprofile.edition
+
     articles = Article.objects.filter(
-        status__in=['submitted', 'subeditor_review', 'editor_sent_back']
+        edition=edition,
+        status__in=["submitted","subeditor_review","editor_sent_back"]
     )
 
-    search_query = request.GET.get('search')
-    category_filter = request.GET.get('category')
-    status_filter = request.GET.get('status')
+    search = request.GET.get("search")
+    category = request.GET.get("category")
+    status = request.GET.get("status")
 
-    if search_query:
+    if search:
+
         articles = articles.filter(
-            Q(title__icontains=search_query) |
-            Q(content__icontains=search_query)
+            Q(title__icontains=search) |
+            Q(content__icontains=search)
         )
 
-    if category_filter:
-        articles = articles.filter(category__id=category_filter)
+    if category:
 
-    if status_filter:
-        articles = articles.filter(status=status_filter)
+        articles = articles.filter(category_id=category)
 
-    categories = Category.objects.all()
+    if status:
 
-    new_articles = Article.objects.filter(status='submitted').count()
+        articles = articles.filter(status=status)
 
-    sent_back_articles = Article.objects.filter(
-        status='editor_sent_back'
+    categories = Category.objects.filter(edition=edition)
+
+    new_articles = Article.objects.filter(
+        edition=edition,
+        status="submitted"
     ).count()
 
-    return render(request, 'news/subeditor_dashboard.html', {
-        'articles': articles,
-        'categories': categories,
-        'new_articles': new_articles,
-        'sent_back_articles': sent_back_articles
+    sent_back_articles = Article.objects.filter(
+        edition=edition,
+        status="editor_sent_back"
+    ).count()
+
+    return render(request,"news/subeditor_dashboard.html",{
+        "articles":articles,
+        "categories":categories,
+        "new_articles":new_articles,
+        "sent_back_articles":sent_back_articles
     })
 
 
@@ -148,11 +174,11 @@ def subeditor_dashboard(request):
 # -----------------------------------
 
 @login_required
-def edit_article(request, article_id):
+def edit_article(request,article_id):
 
     article = Article.objects.get(id=article_id)
 
-    if request.method == 'POST':
+    if request.method == "POST":
 
         ArticleVersion.objects.create(
             article=article,
@@ -161,55 +187,55 @@ def edit_article(request, article_id):
             edited_by=request.user
         )
 
-        article.title = request.POST['title']
-        article.content = request.POST['content']
+        article.title = request.POST["title"]
+        article.content = request.POST["content"]
 
         role = request.user.userprofile.role
 
-        if role == 'editor':
+        if role == "editor":
 
-            page_number = request.POST.get('page_number')
+            page_number = request.POST.get("page_number")
 
             if not page_number:
 
-                return render(request, 'news/edit_article.html', {
-                    'article': article,
-                    'versions': article.versions.all().order_by('-edited_at'),
-                    'error': 'Page number is required before approval'
+                return render(request,"news/edit_article.html",{
+                    "article":article,
+                    "versions":article.versions.all().order_by("-edited_at"),
+                    "error":"Page number required"
                 })
 
             article.page_number = int(page_number)
-            article.status = 'editor_approved'
+            article.status = "editor_approved"
             article.save()
 
             ArticleActivity.objects.create(
                 article=article,
                 user=request.user,
-                action="Editor approved the article"
+                action="Editor approved article"
             )
 
-            return redirect('/editor-dashboard/')
+            return redirect("/editor-dashboard/")
 
-        elif role == 'subeditor':
+        elif role == "subeditor":
 
-            article.status = 'subeditor_review'
+            article.status = "subeditor_review"
             article.save()
 
             ArticleActivity.objects.create(
                 article=article,
                 user=request.user,
-                action="SubEditor edited the article"
+                action="SubEditor edited article"
             )
 
-            return redirect('/subeditor-dashboard/')
+            return redirect("/subeditor-dashboard/")
 
-    versions = article.versions.all().order_by('-edited_at')
-    activities = article.activities.all().order_by('-created_at')
+    versions = article.versions.all().order_by("-edited_at")
+    activities = article.activities.all().order_by("-created_at")
 
-    return render(request, 'news/edit_article.html', {
-        'article': article,
-        'versions': versions,
-        'activities': activities
+    return render(request,"news/edit_article.html",{
+        "article":article,
+        "versions":versions,
+        "activities":activities
     })
 
 
@@ -220,13 +246,18 @@ def edit_article(request, article_id):
 @login_required
 def editor_dashboard(request):
 
-    articles = Article.objects.filter(status='subeditor_review')
+    edition = request.user.userprofile.edition
+
+    articles = Article.objects.filter(
+        edition=edition,
+        status="subeditor_review"
+    )
 
     pending_articles = articles.count()
 
-    return render(request, 'news/editor_dashboard.html', {
-        'articles': articles,
-        'pending_articles': pending_articles
+    return render(request,"news/editor_dashboard.html",{
+        "articles":articles,
+        "pending_articles":pending_articles
     })
 
 
@@ -235,28 +266,28 @@ def editor_dashboard(request):
 # -----------------------------------
 
 @login_required
-def approve_article(request, article_id):
+def approve_article(request,article_id):
 
     article = Article.objects.get(id=article_id)
 
-    if request.method == 'POST':
+    if request.method == "POST":
 
-        page_number = request.POST.get('page_number')
+        page = request.POST.get("page_number")
 
-        article.page_number = int(page_number) if page_number else None
-        article.status = 'editor_approved'
+        article.page_number = int(page) if page else None
+        article.status = "editor_approved"
         article.save()
 
         ArticleActivity.objects.create(
             article=article,
             user=request.user,
-            action="Editor approved the article"
+            action="Editor approved article"
         )
 
-        return redirect('/editor-dashboard/')
+        return redirect("/editor-dashboard/")
 
-    return render(request, 'news/approve_article.html', {
-        'article': article
+    return render(request,"news/approve_article.html",{
+        "article":article
     })
 
 
@@ -267,13 +298,18 @@ def approve_article(request, article_id):
 @login_required
 def pagination_dashboard(request):
 
-    articles = Article.objects.filter(status='editor_approved')
+    edition = request.user.userprofile.edition
+
+    articles = Article.objects.filter(
+        edition=edition,
+        status="editor_approved"
+    )
 
     ready_for_pagination = articles.count()
 
-    return render(request, 'news/pagination_dashboard.html', {
-        'articles': articles,
-        'ready_for_pagination': ready_for_pagination
+    return render(request,"news/pagination_dashboard.html",{
+        "articles":articles,
+        "ready_for_pagination":ready_for_pagination
     })
 
 
@@ -282,20 +318,20 @@ def pagination_dashboard(request):
 # -----------------------------------
 
 @login_required
-def publish_article(request, article_id):
+def publish_article(request,article_id):
 
     article = Article.objects.get(id=article_id)
 
-    article.status = 'published'
+    article.status = "published"
     article.save()
 
     ArticleActivity.objects.create(
         article=article,
         user=request.user,
-        action="Paginator published the article"
+        action="Paginator published article"
     )
 
-    return redirect('/pagination-dashboard/')
+    return redirect("/pagination-dashboard/")
 
 
 # -----------------------------------
@@ -307,12 +343,12 @@ def send_back_to_subeditor(request, article_id):
 
     article = Article.objects.get(id=article_id)
 
-    if request.method == 'POST':
+    if request.method == "POST":
 
-        comment = request.POST.get('editor_comment')
+        comment = request.POST.get("editor_comment")
 
         article.editor_comment = comment
-        article.status = 'editor_sent_back'
+        article.status = "editor_sent_back"
         article.save()
 
         ArticleActivity.objects.create(
@@ -322,12 +358,11 @@ def send_back_to_subeditor(request, article_id):
             comment=comment
         )
 
-        return redirect('/editor-dashboard/')
+        return redirect("/editor-dashboard/")
 
-    return render(request, 'news/send_back.html', {
-        'article': article
+    return render(request, "news/send_back.html", {
+        "article": article
     })
-
 
 # -----------------------------------
 # RESTORE ARTICLE VERSION
@@ -337,8 +372,10 @@ def send_back_to_subeditor(request, article_id):
 def restore_version(request, version_id):
 
     version = ArticleVersion.objects.get(id=version_id)
+
     article = version.article
 
+    # Save current version before restoring
     ArticleVersion.objects.create(
         article=article,
         title=article.title,
@@ -346,6 +383,7 @@ def restore_version(request, version_id):
         edited_by=request.user
     )
 
+    # Restore old content
     article.title = version.title
     article.content = version.content
     article.save()
@@ -353,10 +391,10 @@ def restore_version(request, version_id):
     ArticleActivity.objects.create(
         article=article,
         user=request.user,
-        action="Editor restored an old version"
+        action="Editor restored old article version"
     )
 
-    return redirect(f'/edit-article/{article.id}/')
+    return redirect(f"/edit-article/{article.id}/")
 
 
 # -----------------------------------
@@ -366,32 +404,34 @@ def restore_version(request, version_id):
 @login_required
 def page_layout_planner(request):
 
-    page_number = request.GET.get("page", 1)
+    edition = request.user.userprofile.edition
+
+    page_number = request.GET.get("page",1)
 
     layouts = PageLayout.objects.filter(page_number=page_number)
 
-    # Convert layouts to dictionary {slot: article}
     layout_dict = {}
 
     for layout in layouts:
         layout_dict[layout.slot_number] = layout.article
 
-    used_articles = layouts.values_list("article_id", flat=True)
+    used_articles = layouts.values_list("article_id",flat=True)
 
     articles = Article.objects.filter(
+        edition=edition,
         status="editor_approved",
         page_number=page_number
     ).exclude(id__in=used_articles)
 
-    return render(request, "news/page_layout_planner.html", {
-        "articles": articles,
-        "layouts": layout_dict,
-        "page_number": page_number
+    return render(request,"news/page_layout_planner.html",{
+        "articles":articles,
+        "layouts":layout_dict,
+        "page_number":page_number
     })
 
 
 # -----------------------------------
-# SAVE PAGE LAYOUT (AJAX)
+# SAVE PAGE LAYOUT
 # -----------------------------------
 
 @login_required
@@ -400,31 +440,31 @@ def save_page_layout(request):
     if request.method == "POST":
 
         article_id = request.POST.get("article_id")
-        slot_number = request.POST.get("slot_number")
-        page_number = request.POST.get("page_number")
+        slot = request.POST.get("slot_number")
+        page = request.POST.get("page_number")
 
         article = Article.objects.get(id=article_id)
 
         PageLayout.objects.filter(
-            page_number=page_number,
-            slot_number=slot_number
+            page_number=page,
+            slot_number=slot
         ).delete()
 
         PageLayout.objects.create(
-            page_number=page_number,
-            slot_number=slot_number,
+            page_number=page,
+            slot_number=slot,
             article=article
         )
 
-        return JsonResponse({"status": "saved"})
+        return JsonResponse({"status":"saved"})
 
 
 # -----------------------------------
-# EXPORT PAGE PACKAGE
+# EXPORT PAGE XML
 # -----------------------------------
 
 @login_required
-def export_page_package(request, page_number):
+def export_page_package(request,page_number):
 
     layouts = PageLayout.objects.filter(page_number=page_number)
 
@@ -443,26 +483,30 @@ def export_page_package(request, page_number):
 
         root = ET.Element("article")
 
-        ET.SubElement(root, "title").text = article.title
-        ET.SubElement(root, "category").text = article.category.name
-        ET.SubElement(root, "page").text = str(article.page_number)
-        ET.SubElement(root, "reporter").text = article.reporter.username
-        ET.SubElement(root, "content").text = article.content
+        ET.SubElement(root,"title").text = article.title
+        ET.SubElement(root,"category").text = article.category.name
+        ET.SubElement(root,"page").text = str(article.page_number)
+        ET.SubElement(root,"reporter").text = article.reporter.username
+        ET.SubElement(root,"content").text = article.content
 
         tree = ET.ElementTree(root)
         tree.write(xml_file)
 
-    with zipfile.ZipFile(zip_path, 'w') as zipf:
+    with zipfile.ZipFile(zip_path,'w') as zipf:
 
         for file in os.listdir(export_dir):
 
             zipf.write(
-                os.path.join(export_dir, file),
+                os.path.join(export_dir,file),
                 file
             )
 
-    return FileResponse(open(zip_path, 'rb'), as_attachment=True)
+    return FileResponse(open(zip_path,"rb"),as_attachment=True)
 
+
+# -----------------------------------
+# EXPORT SINGLE ARTICLE XML
+# -----------------------------------
 
 @login_required
 def export_article_xml(request, article_id):
@@ -526,12 +570,12 @@ def export_article_xml(request, article_id):
 
     return FileResponse(open(zip_path, 'rb'), as_attachment=True)
 
+# -----------------------------------
+# QUARK EXPORT
+# -----------------------------------
 
-#--------------------------------
-# QUARK EXPORT FUNCTION
-#--------------------------------
 @login_required
-def export_quark_tagged_page(request, page_number):
+def export_quark_tagged_page(request,page_number):
 
     layouts = PageLayout.objects.filter(page_number=page_number)
 
@@ -548,7 +592,7 @@ def export_quark_tagged_page(request, page_number):
 
         txt_file = f"{export_dir}/article_{article.id}.txt"
 
-        with open(txt_file, "w") as f:
+        with open(txt_file,"w") as f:
 
             f.write(f"<@Headline>{article.title}\n")
             f.write(f"<@Category>{article.category.name}\n")
@@ -565,13 +609,53 @@ def export_quark_tagged_page(request, page_number):
 
                 os.system(f"cp {img.image.path} {export_dir}/{filename}")
 
-    with zipfile.ZipFile(zip_path, 'w') as zipf:
+    with zipfile.ZipFile(zip_path,'w') as zipf:
 
         for file in os.listdir(export_dir):
 
             zipf.write(
-                os.path.join(export_dir, file),
+                os.path.join(export_dir,file),
                 file
             )
 
-    return FileResponse(open(zip_path, 'rb'), as_attachment=True)
+    return FileResponse(open(zip_path,"rb"),as_attachment=True)
+
+
+# -----------------------------------
+# AI FUNCTIONS
+# -----------------------------------
+
+@login_required
+def ai_improve_article(request):
+
+    if request.method == "POST":
+
+        text = request.POST.get("content")
+
+        improved = improve_article(text)
+
+        return JsonResponse({"improved_text":improved})
+
+
+@login_required
+def ai_generate_headline(request):
+
+    if request.method == "POST":
+
+        text = request.POST.get("content")
+
+        headline = generate_headline(text)
+
+        return JsonResponse({"headline":headline})
+
+
+@login_required
+def ai_generate_article(request):
+
+    if request.method == "POST":
+
+        notes = request.POST.get("notes")
+
+        article = generate_article_from_notes(notes)
+
+        return JsonResponse({"article":article})

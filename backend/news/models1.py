@@ -1,15 +1,44 @@
+from django.db import models
+from django.contrib.auth.models import User
+
+# Editions
+class Edition(models.Model):
+
+    name = models.CharField(max_length=200)
+
+    def __str__(self):
+        return self.name
+
+# News Categories
+class Category(models.Model):
+
+    name = models.CharField(max_length=200)
+
+    edition = models.ForeignKey(
+        Edition,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
+    )
+
+    def __str__(self):
+        return self.name
+
+# News Article
 class Article(models.Model):
 
     STATUS_CHOICES = [
         ('draft', 'Draft'),
         ('submitted', 'Submitted'),
         ('subeditor_review', 'SubEditor Review'),
+        ('editor_sent_back', 'Sent Back by Editor'),
         ('editor_approved', 'Editor Approved'),
         ('pagination', 'Pagination'),
         ('published', 'Published'),
     ]
 
     title = models.CharField(max_length=500)
+
     content = models.TextField()
 
     category = models.ForeignKey(
@@ -28,10 +57,13 @@ class Article(models.Model):
         default='draft'
     )
 
+    # Page number assigned by editor
     page_number = models.IntegerField(
         null=True,
         blank=True
     )
+
+    editor_comment = models.TextField(null=True, blank=True)    
 
     created_at = models.DateTimeField(
         auto_now_add=True
@@ -41,24 +73,94 @@ class Article(models.Model):
         auto_now=True
     )
 
-    def can_edit(self, user):
-        """
-        Role based editing rules
-        """
-
-        if user.userprofile.role == 'reporter':
-            return self.reporter == user
-
-        if user.userprofile.role == 'subeditor':
-            return self.status == 'submitted'
-
-        if user.userprofile.role == 'editor':
-            return self.status == 'subeditor_review'
-
-        if user.userprofile.role == 'paginator':
-            return self.status == 'editor_approved'
-
-        return False
-
     def __str__(self):
         return self.title
+
+
+# Article Images (multiple images per article)
+class ArticleImage(models.Model):
+
+    article = models.ForeignKey(
+        Article,
+        on_delete=models.CASCADE,
+        related_name='images'
+    )
+
+    image = models.ImageField(
+        upload_to='article_images/'
+    )
+
+    caption = models.CharField(
+        max_length=255,
+        blank=True
+    )
+
+    uploaded_at = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    def __str__(self):
+        return f"Image for {self.article.title}"
+
+
+class ArticleVersion(models.Model):
+
+    article = models.ForeignKey(
+        Article,
+        on_delete=models.CASCADE,
+        related_name="versions"
+    )
+
+    title = models.CharField(max_length=500)
+
+    content = models.TextField()
+
+    edited_by = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE
+    )
+
+    edited_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Version of {self.article.title} by {self.edited_by.username}"
+
+class ArticleActivity(models.Model):
+
+    article = models.ForeignKey(
+        Article,
+        on_delete=models.CASCADE,
+        related_name="activities"
+    )
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE
+    )
+
+    action = models.CharField(max_length=255)
+
+    comment = models.TextField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.article.title} - {self.action}"
+
+
+class PageLayout(models.Model):
+
+    page_number = models.IntegerField()
+
+    slot_number = models.IntegerField()
+
+    article = models.ForeignKey(
+        Article,
+        on_delete=models.CASCADE
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+
+        return f"Page {self.page_number} - Slot {self.slot_number}"
