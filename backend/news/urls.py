@@ -49,6 +49,16 @@ urlpatterns = [
 
     path('', views.login_redirect, name='login_redirect'),
 
+    path('user-control/', views.user_control_panel, name='user_control_panel'),
+
+    path('create-user/', views.create_user, name='create_user'),
+
+    path('edit-user/<int:user_id>/', views.edit_user, name='edit_user'),
+
+    path('toggle-user/<int:user_id>/', views.toggle_user, name='toggle_user'),
+
+    path('reset-password/<int:user_id>/', views.reset_password, name='reset_password'),
+
 #    path('ai-generate-from-urls/', views.ai_generate_article_from_urls, name='ai_generate_article_from_urls'),
 
 ]

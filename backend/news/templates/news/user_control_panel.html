@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h2>User Control Panel</h2>
+
+<a href="/create-user/" class="btn btn-success mb-3">
+Create User
+</a>
+
+<table class="table table-bordered table-striped">
+
+<thead class="table-dark">
+
+<tr>
+<th>Username</th>
+<th>Email</th>
+<th>Role</th>
+<th>Edition</th>
+<th>Status</th>
+<th>Actions</th>
+</tr>
+
+</thead>
+
+<tbody>
+
+{% for item in user_data %}
+
+<tr>
+
+<td>{{ item.user.username }}</td>
+
+<td>{{ item.user.email }}</td>
+
+<td>
+{% if item.profile %}
+{{ item.profile.role }}
+{% else %}
+-
+{% endif %}
+</td>
+
+<td>
+{% if item.profile and item.profile.edition %}
+{{ item.profile.edition.name }}
+{% else %}
+-
+{% endif %}
+</td>
+
+<td>
+
+{% if item.user.is_active %}
+<span class="badge bg-success">Active</span>
+{% else %}
+<span class="badge bg-danger">Disabled</span>
+{% endif %}
+
+</td>
+
+<td>
+
+<a href="/edit-user/{{ item.user.id }}/" class="btn btn-primary btn-sm">
+Edit
+</a>
+
+<a href="/toggle-user/{{ item.user.id }}/" class="btn btn-warning btn-sm">
+Enable / Disable
+</a>
+
+<a href="/reset-password/{{ item.user.id }}/" class="btn btn-danger btn-sm">
+Reset Password
+</a>
+
+</td>
+</tr>
+
+{% endfor %}
+
+</tbody>
+
+</table>
+
+{% endblock %}

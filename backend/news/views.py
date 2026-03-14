@@ -842,16 +842,31 @@ def change_password(request):
     })
 
 #------------------
-#LOGIN REDIRECT
+# LOGIN REDIRECT
 #------------------
+
 from django.shortcuts import redirect
 from django.contrib.auth.decorators import login_required
+from accounts.models import UserProfile
 
 
 @login_required
 def login_redirect(request):
 
-    profile = request.user.userprofile
+    user = request.user
+
+    # Superuser goes to User Control Panel
+    if user.is_superuser:
+        return redirect("/user-control/")
+
+    # Ensure userprofile exists
+    try:
+        profile = user.userprofile
+    except UserProfile.DoesNotExist:
+        profile = UserProfile.objects.create(
+            user=user,
+            role="reporter"
+        )
 
     # Force password change
     if profile.must_change_password:
@@ -871,4 +886,171 @@ def login_redirect(request):
     elif role == "paginator":
         return redirect("/pagination-dashboard/")
 
+    # fallback
     return redirect("/")
+
+#--------------------
+#ADMIN VIEW
+#-------------------
+from django.contrib.auth.models import User
+from accounts.models import UserProfile
+from .models import Edition
+
+
+@login_required
+def user_control_panel(request):
+
+    if not request.user.is_superuser:
+        return redirect("/")
+
+    users = User.objects.all().order_by("username")
+
+    user_data = []
+
+    for user in users:
+
+        profile = None
+
+        try:
+            profile = user.userprofile
+        except:
+            pass
+
+        user_data.append({
+            "user": user,
+            "profile": profile
+        })
+
+    return render(request, "news/user_control_panel.html", {
+        "user_data": user_data
+    })
+
+#------------------
+#CREATE USER
+#------------------
+
+from .forms import CreateUserForm
+from .models import Edition
+
+@login_required
+def create_user(request):
+
+    if not request.user.is_superuser:
+        return redirect("/")
+
+    from django.contrib.auth.models import User
+    from accounts.models import UserProfile
+    from .models import Edition
+
+    editions = Edition.objects.all()
+
+    if request.method == "POST":
+
+        username = request.POST.get("username")
+        email = request.POST.get("email")
+        password = request.POST.get("password")
+        role = request.POST.get("role")
+        edition_id = request.POST.get("edition")
+
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            password=password
+        )
+
+        edition = None
+
+        if edition_id:
+            edition = Edition.objects.get(id=edition_id)
+
+        UserProfile.objects.create(
+            user=user,
+            role=role,
+            edition=edition,
+            must_change_password=True
+        )
+
+        return redirect("/user-control/")
+
+    return render(request, "news/create_user.html", {
+        "editions": editions
+    })
+
+#--------------
+#EDIT USER
+#--------------
+@login_required
+def edit_user(request, user_id):
+
+    if not request.user.is_superuser:
+        return redirect("/")
+
+    from django.contrib.auth.models import User
+    from accounts.models import UserProfile
+    from .models import Edition
+
+    user = User.objects.get(id=user_id)
+    profile = user.userprofile
+
+    editions = Edition.objects.all()
+
+    if request.method == "POST":
+
+        role = request.POST.get("role")
+        edition_id = request.POST.get("edition")
+
+        profile.role = role
+
+        if edition_id:
+            profile.edition = Edition.objects.get(id=edition_id)
+
+        profile.save()
+
+        return redirect("/user-control/")
+
+    return render(request, "news/edit_user.html", {
+        "user_obj": user,
+        "profile": profile,
+        "editions": editions
+    })
+
+#---------------------
+#ENABEL/DISABLE USER
+#---------------------
+@login_required
+def toggle_user(request, user_id):
+
+    if not request.user.is_superuser:
+        return redirect("/")
+
+    from django.contrib.auth.models import User
+
+    user = User.objects.get(id=user_id)
+
+    user.is_active = not user.is_active
+    user.save()
+
+    return redirect("/user-control/")
+
+#----------------
+#RESET PASSWORD
+#----------------
+@login_required
+def reset_password(request, user_id):
+
+    if not request.user.is_superuser:
+        return redirect("/")
+
+    from django.contrib.auth.models import User
+
+    user = User.objects.get(id=user_id)
+
+    user.set_password("newsroom123")
+
+    user.save()
+
+    profile = user.userprofile
+    profile.must_change_password = True
+    profile.save()
+
+    return redirect("/user-control/")
